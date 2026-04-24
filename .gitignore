@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# 3D Data (Large files)
+# *.stl
+# *.glb
+# *.csv
+
+# Generated Reports
+# surface_risk_heatmap.html
+# risk_map.csv
+
+# IDEs
+.vscode/
+.idea/

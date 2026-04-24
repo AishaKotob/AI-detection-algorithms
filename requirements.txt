@@ -1,0 +1,6 @@
+numpy
+trimesh
+scipy
+plotly
+rtree
+matplotlib
