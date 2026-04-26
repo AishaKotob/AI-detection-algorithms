@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Metrology Dashboard | Unified Analysis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #00f2fe;
+            --secondary: #4facfe;
+            --accent: #f87171;
+            --bg: #0f172a;
+            --glass: rgba(30, 41, 59, 0.7);
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            overflow: hidden;
+            color: white;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Top Navigation */
+        .top-nav {
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            padding: 6px;
+            border-radius: 40px;
+            border: 1px solid var(--border);
+            display: flex;
+            gap: 4px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .nav-btn {
+            padding: 10px 24px;
+            border-radius: 30px;
+            border: none;
+            background: transparent;
+            color: white;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            opacity: 0.6;
+        }
+
+        .nav-btn.active {
+            background: var(--primary);
+            color: #0f172a;
+            opacity: 1;
+        }
+
+        /* Sidebar UI */
+        .overlay {
+            position: fixed;
+            top: 24px;
+            left: 24px;
+            z-index: 10;
+            background: var(--glass);
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            padding: 28px;
+            border-radius: 20px;
+            width: 320px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+            animation: slideIn 0.8s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(-110%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .mode-title {
+            text-transform: uppercase;
+            font-size: 0.65rem;
+            letter-spacing: 2px;
+            color: var(--primary);
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            opacity: 0.5;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .legend {
+            margin-top: 20px;
+        }
+
+        .legend-title {
+            font-size: 0.75rem;
+            margin-bottom: 10px;
+            opacity: 0.8;
+        }
+
+        .legend-bar {
+            height: 10px;
+            width: 100%;
+            background: linear-gradient(to right, #22c55e, #eab308, #ef4444);
+            border-radius: 5px;
+            margin-bottom: 8px;
+        }
+
+        .legend-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            opacity: 0.5;
+        }
+
+        .control-panel {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        input[type=range] {
+            width: 100%;
+            accent-color: var(--primary);
+        }
+
+        #tooltip {
+            position: fixed;
+            background: var(--glass);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--primary);
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            pointer-events: none;
+            display: none;
+            z-index: 200;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+            font-size: 0.9rem;
+            letter-spacing: 3px;
+            opacity: 0.8;
+        }
+
+        .hint {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--glass);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            border: 1px solid var(--border);
+            z-index: 10;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loading">INITIALIZING 3D ENGINE...</div>
+    <div id="tooltip">0.0°</div>
+
+    <div class="top-nav">
+        <button class="nav-btn active" onclick="setMode('surface')">SURFACE RISK</button>
+        <button class="nav-btn" onclick="setMode('overhang')">OVERHANG ANALYSIS</button>
+    </div>
+
+    <div class="overlay">
+        <h1 id="app-title">Metrology Dashboard</h1>
+        <div class="mode-title" id="mode-display">SURFACE RISK MODE</div>
+
+        <div class="stat-card">
+            <span class="stat-label">Critical Zone Area</span>
+            <span class="stat-value" id="stat-critical">0.0%</span>
+        </div>
+
+        <div class="stat-card">
+            <span class="stat-label" id="label-metric">Max Deviation</span>
+            <span class="stat-value" id="stat-metric">0.00mm</span>
+        </div>
+
+        <div class="legend">
+            <div class="legend-title" id="legend-text">STAIR-STEPPING RISK</div>
+            <div class="legend-bar"></div>
+            <div class="legend-labels">
+                <span>SAFE</span>
+                <span>WARNING</span>
+                <span>CRITICAL</span>
+            </div>
+        </div>
+
+        <div class="control-panel" id="slider-panel">
+            <div class="control-label">
+                <span id="slider-label">SENSITIVITY THRESHOLD</span>
+                <span id="slider-val">45°</span>
+            </div>
+            <input type="range" id="threshold-slider" min="5" max="85" value="45">
+        </div>
+    </div>
+
+    <div class="hint">DRAG & DROP STL FOR INSTANT ANALYSIS</div>
+    <div id="canvas-container"></div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+
+        let scene, camera, renderer, controls, currentModel;
+        let currentGeometry, currentNormals;
+        let mode = 'surface'; // 'surface' or 'overhang'
+        let threshold = 45;
+        let contourGroup = new THREE.Group();
+
+        function generateContours(geometry, interval) {
+            if (contourGroup) scene.remove(contourGroup);
+            contourGroup = new THREE.Group();
+            const positions = geometry.attributes.position.array;
+            const linePoints = [];
+            for (let i = 0; i < positions.length; i += 9) {
+                const v1 = new THREE.Vector3(positions[i], positions[i + 1], positions[i + 2]);
+                const v2 = new THREE.Vector3(positions[i + 3], positions[i + 4], positions[i + 5]);
+                const v3 = new THREE.Vector3(positions[i + 6], positions[i + 7], positions[i + 8]);
+                const minZ = Math.min(v1.z, v2.z, v3.z), maxZ = Math.max(v1.z, v2.z, v3.z);
+                for (let z = Math.ceil(minZ / interval) * interval; z <= maxZ; z += interval) {
+                    const pts = intersectTriangle(v1, v2, v3, z);
+                    if (pts.length === 2) linePoints.push(pts[0].x, pts[0].y, pts[0].z, pts[1].x, pts[1].y, pts[1].z);
+                }
+            }
+            if (linePoints.length > 0) {
+                const lineGeo = new THREE.BufferGeometry();
+                lineGeo.setAttribute('position', new THREE.Float32BufferAttribute(linePoints, 3));
+                contourGroup.add(new THREE.LineSegments(lineGeo, new THREE.LineBasicMaterial({ color: 0xa855f7 })));
+            }
+        }
+
+        function intersectTriangle(a, b, c, z) {
+            const pts = [], edges = [[a, b], [b, c], [c, a]];
+            for (const [v1, v2] of edges) {
+                if ((v1.z <= z && v2.z >= z) || (v1.z >= z && v2.z <= z)) {
+                    if (v1.z !== v2.z) pts.push(new THREE.Vector3().lerpVectors(v1, v2, (z - v1.z) / (v2.z - v1.z)));
+                }
+            }
+            return pts.filter((p, index) => pts.findIndex(o => o.distanceTo(p) < 0.0001) === index);
+        }
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        const tooltip = document.getElementById('tooltip');
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0f172a);
+            scene.fog = new THREE.Fog(0x0f172a, 30, 200);
+
+            camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(25, 25, 25);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            dirLight.position.set(10, 20, 10);
+            scene.add(dirLight);
+
+            const sideLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            sideLight.position.set(-10, 10, -10);
+            scene.add(sideLight);
+
+            grid = new THREE.GridHelper(100, 50, 0x1e293b, 0x0f172a);
+            grid.position.y = -10;
+            scene.add(grid);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('dragover', (e) => e.preventDefault());
+            window.addEventListener('drop', handleDrop);
+            window.addEventListener('pointermove', onPointerMove);
+
+            document.getElementById('threshold-slider').addEventListener('input', (e) => {
+                threshold = parseInt(e.target.value);
+                document.getElementById('slider-val').innerText = threshold + '°';
+                if (currentGeometry) updateAnalysis();
+            });
+
+            // Initial UI State
+            window.setMode = (newMode) => {
+                mode = newMode;
+                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                event.target.classList.add('active');
+
+                // Update UI Labels and Thresholds based on Research
+                if (mode === 'surface') {
+                    threshold = 20; // Research baseline for surface lines
+                    document.getElementById('threshold-slider').value = 20;
+                    document.getElementById('slider-val').innerText = '20°';
+                    document.getElementById('mode-display').innerText = 'SURFACE RISK MODE';
+                    document.getElementById('label-metric').innerText = 'Risk Level';
+                    document.getElementById('legend-text').innerText = 'ANGLE FROM HORIZONTAL'; // Omar's specific request
+                    document.getElementById('slider-label').innerText = 'RISK THRESHOLD';
+                    if (contourGroup) contourGroup.visible = true;
+                } else {
+                    threshold = 45; // Standard overhang baseline
+                    document.getElementById('threshold-slider').value = 45;
+                    document.getElementById('slider-val').innerText = '45°';
+                    document.getElementById('mode-display').innerText = 'OVERHANG ANALYSIS MODE';
+                    document.getElementById('label-metric').innerText = 'Max Overhang Angle';
+                    document.getElementById('legend-text').innerText = 'ANGLE FROM VERTICAL';
+                    document.getElementById('slider-label').innerText = 'SUPPORT THREADHOLD';
+                    if (contourGroup) contourGroup.visible = false;
+                }
+
+                if (currentGeometry) updateAnalysis();
+            };
+
+            document.getElementById('loading').style.display = 'none';
+            animate();
+        }
+
+        let grid;
+
+        function handleDrop(e) {
+            e.preventDefault();
+            const file = e.dataTransfer.files[0];
+            if (!file || !file.name.toLowerCase().endsWith('.stl')) return;
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('loading').innerText = 'PROCESSING MESH...';
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const loader = new STLLoader();
+                currentGeometry = loader.parse(event.target.result);
+                currentGeometry.computeVertexNormals();
+                currentNormals = currentGeometry.attributes.normal.array;
+
+                updateAnalysis();
+                generateContours(currentGeometry, 1.0);
+
+                const material = new THREE.MeshStandardMaterial({
+                    vertexColors: true,
+                    roughness: 0.4,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const mesh = new THREE.Mesh(currentGeometry, material);
+                display(mesh);
+                document.getElementById('loading').style.display = 'none';
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function updateAnalysis() {
+            if (!currentGeometry) return;
+            const colors = [];
+            let critCount = 0;
+            let maxVal = 0;
+
+            for (let i = 0; i < currentNormals.length; i += 3) {
+                const nx = currentNormals[i];
+                const ny = currentNormals[i + 1];
+                const nz = currentNormals[i + 2];
+
+                let score = 0; // 0 to 90
+
+                if (mode === 'surface') {
+                    // Angle of the FACE relative to the HORIZONTAL plane
+                    // 0 = Horizontal (High Risk), 90 = Vertical (Safe)
+                    score = Math.acos(Math.abs(nz)) * (180 / Math.PI);
+                } else {
+                    // Overhang: Only downward faces
+                    if (nz < 0) {
+                        const nx_ny_mag = Math.sqrt(nx * nx + ny * ny);
+                        score = Math.atan2(Math.abs(nz), nx_ny_mag) * (180 / Math.PI);
+                    }
+                }
+
+                if (mode === 'overhang') {
+                    // Overhang: Large angle = Risk (90 is horizontal ceiling)
+                    if (score > maxVal) maxVal = score;
+                    if (score > threshold) critCount++;
+
+                    const color = new THREE.Color();
+                    if (score <= threshold) {
+                        const t = score / threshold;
+                        color.lerpColors(new THREE.Color(0x22c55e), new THREE.Color(0xeab308), t);
+                    } else {
+                        const t = Math.min((score - threshold) / (90 - threshold), 1);
+                        color.lerpColors(new THREE.Color(0xeab308), new THREE.Color(0xef4444), t);
+                    }
+                    colors.push(color.r, color.g, color.b);
+                } else {
+                    // Surface Mode: "Engineering Style" Contour Lines
+                    // We use a clean beige base and sharp purple lines as requested
+                    const risk = 90 - score;
+                    if (risk > maxVal) maxVal = risk;
+                    if (score < threshold) critCount++;
+
+                    const color = new THREE.Color(0xd6d3d1); // Clean beige base
+
+                    // Risk Highlighting: Only color if it's below the threshold
+                    if (score < threshold * 0.5) {
+                        color.set(0xef4444); // Critical Red
+                    } else if (score < threshold) {
+                        color.set(0xf59e0b); // Warning Orange
+                    }
+
+                    // ULTRA-SHARP PURPLE CONTOUR LINES
+                    const z = currentGeometry.attributes.position.array[i + 2];
+                    const interval = 1.0; // 1mm between lines
+                    const lineThickness = 0.05;
+                    const normalizedZ = Math.abs((z % interval) / interval);
+
+                    if (normalizedZ < lineThickness || normalizedZ > (1 - lineThickness)) {
+                        color.set(0xa855f7); // Deep Purple Contour
+                    }
+
+                    colors.push(color.r, color.g, color.b);
+                }
+            }
+
+            currentGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+            // Update Stats
+            document.getElementById('stat-critical').innerText = ((critCount / (currentNormals.length / 3)) * 100).toFixed(1) + '%';
+            if (mode === 'surface') {
+                document.getElementById('stat-metric').innerText = maxVal > (90 - threshold) ? 'CRITICAL' : (maxVal > 30 ? 'MEDIUM' : 'LOW');
+            } else {
+                document.getElementById('stat-metric').innerText = maxVal.toFixed(1) + '°';
+            }
+        }
+
+        function display(mesh) {
+            if (currentModel) scene.remove(currentModel);
+            if (contourGroup) scene.add(contourGroup);
+
+            currentModel = mesh;
+            const box = new THREE.Box3().setFromObject(currentModel);
+            const center = box.getCenter(new THREE.Vector3());
+            currentModel.position.sub(center);
+
+            if (contourGroup) contourGroup.position.copy(currentModel.position);
+
+            scene.add(currentModel);
+            const size = box.getSize(new THREE.Vector3()).length();
+            camera.position.set(size, size, size);
+            controls.update();
+        }
+
+        function onPointerMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            tooltip.style.left = (event.clientX + 15) + 'px';
+            tooltip.style.top = (event.clientY + 15) + 'px';
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            if (currentModel) {
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObject(currentModel, true);
+                if (intersects.length > 0) {
+                    const intersect = intersects[0];
+                    const normal = intersect.face.normal.clone().applyQuaternion(intersect.object.quaternion);
+                    let val = 0;
+                    if (mode === 'surface') {
+                        // Angle from Horizontal plane
+                        val = Math.acos(Math.abs(normal.z)) * (180 / Math.PI);
+                    } else {
+                        if (normal.z < 0) {
+                            val = Math.atan2(Math.abs(normal.z), Math.sqrt(normal.x ** 2 + normal.y ** 2)) * (180 / Math.PI);
+                        }
+                    }
+                    tooltip.style.display = 'block';
+                    tooltip.innerText = `${mode === 'surface' ? 'Slope' : 'Angle'}: ${val.toFixed(1)}°`;
+
+                    // Adaptive Border: 
+                    // Overhang: val > threshold is Risk
+                    // Surface: val < threshold is Risk
+                    if (mode === 'overhang') {
+                        tooltip.style.borderColor = val > threshold ? '#ef4444' : '#22c55e';
+                    } else {
+                        tooltip.style.borderColor = val < threshold ? '#ef4444' : '#22c55e';
+                    }
+                } else {
+                    tooltip.style.display = 'none';
+                }
+            }
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
