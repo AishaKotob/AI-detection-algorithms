@@ -1,6 +1,29 @@
-# Surface Line Risk Analysis
+# AI Mesh Detection Algorithms
 
-This tool detects surface line risks (stair-stepping) in 3D STL mesh models, which is critical for 3D printing quality assessment.
+This repository contains advanced 3D metrology tools for detecting and visualizing geometric risks in STL models, specifically optimized for high-precision manufacturing (e.g., hearing aid shells).
+
+## 🚀 Unified 3D Metrology Dashboard
+We have unified the detection tools into a single, high-performance web dashboard:
+- **Surface Risk Mode**: Detects stair-stepping and contour lines based on slope angles from horizontal.
+- **Overhang Mode**: Identifies surfaces facing downward that require support structures.
+
+### Key Features:
+- **Geometric Slicing Engine**: Real-time generation of purple contour lines.
+- **Dynamic Thresholds**: Interactive sliders to adjust sensitivity based on research baselines.
+- **In-Browser Analysis**: No server-side processing required for visualization.
+
+## 🛠️ Included Tools
+- `dashboard.html`: The main unified dashboard.
+- `overhang_analysis.py`: Geometric normal analysis for overhangs.
+- `main.py`: Surface line discretization error analysis.
+
+## 🏃 How to Run
+1. Serve the files using a local server:
+   ```bash
+   python -m http.server 8000
+   ```
+2. Open `localhost:8000/dashboard.html` in your browser.
+3. Drag and drop any STL file for instant analysis.
 
 ## Features
 - **Curvature Risk Detection**: Identifies near-horizontal surfaces that are prone to stair-stepping based on the angle between surface normals and the Z-axis.
